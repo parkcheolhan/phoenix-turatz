@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>피닉스투라츠 기지 배치 시뮬레이터</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background-color: #1e1e1e;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h2 { margin-top: 0; margin-bottom: 10px; }
+        
+        .search-container {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .search-container input {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 2px solid #555;
+            border-radius: 4px;
+            background-color: #333;
+            color: white;
+            outline: none;
+            width: 250px;
+        }
+        .search-container input:focus {
+            border-color: #ff9800;
+        }
+        .search-container button {
+            padding: 8px 16px;
+            font-size: 16px;
+            background-color: #ff9800;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .search-container button:hover {
+            background-color: #e68a00;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            width: 95vw;
+            height: 75vh;
+            gap: 20px;
+            align-items: stretch;
+            justify-content: flex-start;
+        }
+
+        .map-container {
+            flex: 2;
+            min-width: 0;
+            height: 100%;
+            overflow: auto;
+            border: 4px solid #444;
+            background-color: #2e7d32;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            position: relative;
+            cursor: crosshair;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(55, 25px);
+            grid-template-rows: repeat(55, 25px);
+            width: max-content;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 25px 25px;
+        }
+        .node {
+            width: 25px;
+            height: 25px;
+        }
+        .node:hover { background-color: rgba(255, 255, 255, 0.3); }
+        
+        .base {
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 2px solid gold;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s, z-index 0.2s;
+            z-index: 10;
+        }
+        .base:hover {
+            transform: scale(1.15);
+            z-index: 20;
+            background-color: rgba(30, 30, 30, 0.9);
+            border-color: #ff5722;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.8); border-color: #ff5722; }
+            70% { box-shadow: 0 0 0 15px rgba(255, 87, 34, 0); border-color: #ff9800; }
+            100% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0); border-color: #ff5722; }
+        }
+        .base.highlight {
+            background-color: rgba(60, 20, 20, 0.9) !important;
+            animation: pulse 1.5s infinite;
+            z-index: 30;
+            transform: scale(1.1);
+        }
+
+        .base-icon { font-size: 32px; line-height: 1; pointer-events: none; }
+        .base-info {
+            font-size: 11px; font-weight: bold; margin-top: 4px;
+            background: rgba(0,0,0,0.8); padding: 2px 4px;
+            border-radius: 3px; color: #fff; text-align: center;
+            pointer-events: none;
+        }
+        .rank-badge {
+            position: absolute; top: -8px; left: -8px;
+            background-color: #e53935; color: white;
+            font-size: 10px; font-weight: bold; width: 20px; height: 20px;
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; border: 2px solid white; pointer-events: none;
+        }
+		
+		.main-tabs {
+            display: flex;
+            background-color: #1a1a1a;
+            border-bottom: 2px solid #444;
+        }
+        .main-tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .main-tab-btn.active {
+            color: #ff9800;
+            background-color: #2a2a2a;
+            border-bottom: 3px solid #ff9800;
+        }
+        .main-tab-content {
+            display: none;
+            padding: 15px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .main-tab-content.active { display: flex; flex-direction: column; }
+
+        .sub-tabs, .survival-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 15px;
+            background-color: #222;
+            padding: 4px;
+            border-radius: 4px;
+            flex-wrap: wrap;
+        }
+        .sub-tab-btn, .survival-tab-btn {
+            flex: 1;
+            min-width: 65px;
+            padding: 8px 4px;
+            font-size: 12px;
+            background-color: #333;
+            color: #bbb;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-align: center;
+        }
+        .sub-tab-btn.active, .survival-tab-btn.active {
+            background-color: #ff9800;
+            color: #000;
+        }
+        .sub-tab-content, .survival-tab-content { display: none; }
+        .sub-tab-content.active, .survival-tab-content.active { display: block; }
+
+        .mission-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .mission-table th, .mission-table td {
+            border: 1px solid #444;
+            padding: 10px;
+            text-align: left;
+        }
+        .mission-table th { background-color: #1a1a1a; color: #ff9800; text-align: center; }
+        .mission-table tr:nth-child(even) { background-color: #333; }
+		
+        .right-panel {
+            flex: 1;
+            min-width: 340px;
+            height: 100%;
+            background-color: #2a2a2a;
+            border: 4px solid #444;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        #custom-tooltip {
+            position: fixed; background: rgba(0, 0, 0, 0.85); color: #fff;
+            padding: 10px 15px; border: 2px solid #ff9800; border-radius: 5px;
+            font-size: 14px; pointer-events: none; z-index: 9999;
+            display: none; white-space: pre-line; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>🏯 길드전 습격전 배치도</h2>
+    <p>바닥 또는 기지에 마우스를 올리면 즉시 좌표 정보가 표시됩니다.</p>
+
+	<div class="search-container">
+        <input type="text" id="searchInput" placeholder="영주 이름 검색 (예: 영주 15)" onkeypress="if(event.key === 'Enter') searchPlayer()">
+        <button onclick="searchPlayer()">검색</button>
+    </div>
+
+    <div class="main-container">
+        <div class="map-container" id="map-container">
+            <div id="game-board"></div>
+        </div>
+
+        <div class="right-panel">
+            <div class="main-tabs">
+                <button class="main-tab-btn active" onclick="switchMainTab(0)">길드전</button>
+                <button class="main-tab-btn" onclick="switchMainTab(1)">서바이벌배틀</button>
+                <button class="main-tab-btn" onclick="switchMainTab(2)">성당 업 조건</button>
+            </div>
+
+            <div id="main-content-0" class="main-tab-content active">
+                <div class="sub-tabs">
+                    <button class="sub-tab-btn" onclick="switchSubTab(0)">월</button>
+                    <button class="sub-tab-btn" onclick="switchSubTab(1)">화</button>
+                    <button class="sub-tab-btn" onclick="switchSubTab(2)">수</button>
+                    <button class="sub-tab-btn" onclick="switchSubTab(3)">목</button>
+                    <button class="sub-tab-btn" onclick="switchSubTab(4)">금</button>
+                    <button class="sub-tab-btn" onclick="switchSubTab(5)">토</button>
+                </div>
+
+                <div id="sub-content-0" class="sub-tab-content">
+                    <table class="mission-table">
+                        <thead><tr><th>월요일 행동 목표 목록</th></tr></thead>
+                        <tbody>
+                            <tr><td>체력 1 소모</td></tr>
+                            <tr><td>팔콘 타워 임무 1회 완료</td></tr>
+                            <tr><td>660 항독소 소모</td></tr>
+                            <tr><td>다이아몬드가 포함된 패키지 구매 [1 다이아몬드]</td></tr>
+                            <tr><td>식량 100 수집</td></tr>
+                            <tr><td>목재 100 수집</td></tr>
+                            <tr><td>약재 60 수집</td></tr>
+                            <tr><td>까마귀 열매 1개 소모</td></tr>
+                            <tr><td>까마귀 정소 1개 소모</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="sub-content-1" class="sub-tab-content">
+                    <table class="mission-table">
+                        <thead><tr><th>화요일 행동 목표 목록</th></tr></thead>
+                        <tbody>
+                            <tr><td>다이아몬드가 포함된 패키지 구매 [1 다이아몬드]</td></tr>
+                            <tr><td>1분 건설 가속 사용</td></tr>
+                            <tr><td>건물 전투력 1 증가</td></tr>
+                            <tr><td>UR 등급 비밀 작전 1회 수행</td></tr>
+                            <tr><td>UR 등급 마차 1회 파견</td></tr>
+                            <tr><td>생존자 모집 1회 진행</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="sub-content-2" class="sub-tab-content">
+                    <table class="mission-table">
+                        <thead><tr><th>수요일 행동 목표 목록</th></tr></thead>
+                        <tbody>
+                            <tr><td>팔콘 타워 임무 1회 완료</td></tr>
+                            <tr><td>다이아몬드가 포함된 패키지 구매 [1 다이아몬드]</td></tr>
+                            <tr><td>1분 연구 가속 사용</td></tr>
+                            <tr><td>연구 두루마리 1개 사용</td></tr>
+                            <tr><td>기술 전투력 1 증가</td></tr>
+                            <tr><td>까마구 보물상자 오픈</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="sub-content-3" class="sub-tab-content">
+                    <table class="mission-table">
+                        <thead><tr><th>목요일 행동 목표 목록</th></tr></thead>
+                        <tbody>
+                            <tr><td>660 항독소 소모</td></tr>
+                            <tr><td>다이아몬드가 포함된 패키지 구매 [1 다이아몬드]</td></tr>
+                            <tr><td>영웅 모집 1회 실행</td></tr>
+                            <tr><td>UR 영웅 조각 1개 소모</td></tr>
+                            <tr><td>SSR 영웅 조각 1개 소모</td></tr>
+                            <tr><td>SR 영웅 조각 1개 소모</td></tr>
+                            <tr><td>스킬 배지 1개 소모</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="sub-content-4" class="sub-tab-content">
+                    <table class="mission-table">
+                        <thead><tr><th>금요일 행동 목표 목록</th></tr></thead>
+                        <tbody>
+                            <tr><td>팔콘 타워 임무 1회 완료</td></tr>
+                            <tr><td>다이아몬드가 포함된 패키지 구매 [1 다이아몬드]</td></tr>
+                            <tr><td>1분 건설 가속 사용</td></tr>
+                            <tr><td>건물 전투력 1 증가</td></tr>
+                            <tr><td>1분 연구 가속 사용</td></tr>
+                            <tr><td>기술 전투력 1 증가</td></tr>
+                            <tr><td>1분 훈련 가속 사용</td></tr>
+                            <tr><td>병사 1명 훈련</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="sub-content-5" class="sub-tab-content">
+                    <table class="mission-table">
+                        <thead><tr><th>토요일 행동 목표 목록</th></tr></thead>
+                        <tbody>
+                            <tr><td>다이아몬드가 포함된 패키지 구매 [1 다이아몬드]</td></tr>
+                            <tr><td>1분 건설 가속 사용</td></tr>
+                            <tr><td>UR 등급 비밀 작전 1회 수행</td></tr>
+                            <tr><td>1분 연구 가속 사용</td></tr>
+                            <tr><td>1분 훈련 가속 사용</td></tr>
+                            <tr><td>1분 치료 가속 사용</td></tr>
+                            <tr><td>병사 1명 처리(특정 매치)</td></tr>
+                            <tr><td>병사 1명 처치 시마다</td></tr>
+                            <tr><td>병사 1명 전사 시마다</td></tr>
+                            <tr><td>UR 등급 마차 1회 파견</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="main-content-1" class="main-tab-content">
+                <h3>☠️ 서바이벌 배틀 정보</h3>
+                
+                <div class="survival-tabs">
+                    <button class="survival-tab-btn" onclick="switchSurvivalTab(0)">영지 건설</button>
+                    <button class="survival-tab-btn" onclick="switchSurvivalTab(1)">병사 훈련</button>
+                    <button class="survival-tab-btn" onclick="switchSurvivalTab(2)">기술 연구</button>
+                    <button class="survival-tab-btn" onclick="switchSurvivalTab(3)">까마귀 강화</button>
+                    <button class="survival-tab-btn" onclick="switchSurvivalTab(4)">영웅 강화</button>
+                </div>
+
+                <div id="survival-content-0" class="survival-tab-content">
+                    <p style="color:#aaa; text-align:center; margin-top:20px;">영지 건설 행동 목표 정보 준비 중입니다.</p>
+                </div>
+                
+                <div id="survival-content-1" class="survival-tab-content">
+                    <p style="color:#aaa; text-align:center; margin-top:20px;">병사 훈련 행동 목표 정보 준비 중입니다.</p>
+                </div>
+
+                <div id="survival-content-2" class="survival-tab-content">
+                    <table class="mission-table">
+                        <thead><tr><th>🔬 기술 연구 세부 행동 목표 목록</th></tr></thead>
+                        <tbody>
+                            <tr><td>1분 연구 가속 사용</td></tr>
+                            <tr><td>기술 전투력 1 증가</td></tr>
+                            <tr><td>다이아몬드가 포함된 패키지 구매 [1 다이아몬드]</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="survival-content-3" class="survival-tab-content">
+                    <p style="color:#aaa; text-align:center; margin-top:20px;">까마귀 강화 행동 목표 정보 준비 중입니다.</p>
+                </div>
+
+                <div id="survival-content-4" class="survival-tab-content">
+                    <p style="color:#aaa; text-align:center; margin-top:20px;">영웅 강화 행동 목표 정보 준비 중입니다.</p>
+                </div>
+            </div>
+
+            <div id="main-content-2" class="main-tab-content">
+                <h3>🏛️ 성당 레벨 해제 조건 <span style="font-size:12px; color:#aaa; font-weight:normal;">(정리: 108_플로라)</span></h3>
+                <table class="mission-table">
+                    <thead>
+                        <tr>
+                            <th>성당 레벨</th>
+                            <th>조건 1</th>
+                            <th>조건 2</th>
+                            <th>조건 3</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>성당 1</td><td>-</td><td>-</td><td>-</td></tr>
+                        <tr><td>성당 2</td><td>-</td><td>-</td><td>-</td></tr>
+                        <tr><td>성당 3</td><td>-</td><td>-</td><td>-</td></tr>
+                        <tr><td>성당 4</td><td>목재 창고 1</td><td>식량 창고 1</td><td>약재 창고 1</td></tr>
+                        <tr><td>성당 5</td><td>성벽 3</td><td>-</td><td>-</td></tr>
+                        <tr><td>성당 6</td><td>성벽 5</td><td>-</td><td>-</td></tr>
+                        <tr><td>성당 7</td><td>훈련장 4</td><td>길드 연락소 3</td><td>-</td></tr>
+                        <tr><td>성당 8</td><td>훈련장 6</td><td>길드 연락소 5</td><td>-</td></tr>
+                        <tr><td>성당 9</td><td>성벽 8</td><td>길드 연락소 7</td><td>-</td></tr>
+                        <tr><td>성당 10</td><td>성벽 9</td><td>병원 7</td><td>-</td></tr>
+                        <tr><td>성당 11</td><td>연구소 7</td><td>훈련장 10</td><td>-</td></tr>
+                        <tr><td>성당 12</td><td>연구소 11</td><td>성벽 10</td><td>항독소 작업장 7</td></tr>
+                        <tr><td>성당 13</td><td>연구소 12</td><td>길드 연락소 11</td><td>농장 7</td></tr>
+                        <tr><td>성당 14</td><td>연구소 13</td><td>전사 석상 12</td><td>벌목장 7</td></tr>
+                        <tr><td>성당 15</td><td>연구소 14</td><td>훈련장 14</td><td>약초원 7</td></tr>
+                        <tr><td>성당 16</td><td>연구소 15</td><td>전사 석상 14</td><td>식량 창고 7</td></tr>
+                        <tr><td>성당 17</td><td>연구소 16</td><td>병영 15</td><td>목재 창고 7</td></tr>
+                        <tr><td>성당 18</td><td>연구소 17</td><td>훈련장 17</td><td>약재 창고 7</td></tr>
+                        <tr><td>성당 19</td><td>연구소 18</td><td>전사 석상 17</td><td>항독소 작업장 10</td></tr>
+                        <tr><td>성당 20</td><td>연구소 19</td><td>길드 연락소 18</td><td>농장 10</td></tr>
+                        <tr><td>성당 21</td><td>연구소 20</td><td>훈련장 20</td><td>벌목장 10</td></tr>
+                        <tr><td>성당 22</td><td>연구소 21</td><td>전사 석상 21</td><td>약초원 10</td></tr>
+                        <tr><td>성당 23</td><td>연구소 22</td><td>병원 22</td><td>식량 창고 10</td></tr>
+                        <tr><td>성당 24</td><td>연구소 23</td><td>성벽 23</td><td>목재 창고 10</td></tr>
+                        <tr><td>성당 25</td><td>연구소 24</td><td>훈련장 24</td><td>약재 창고 10</td></tr>
+                        <tr><td>성당 26</td><td>연구소 25</td><td>전사 석상 25</td><td>항독소 작업장 13</td></tr>
+                        <tr><td>성당 27</td><td>연구소 26</td><td>훈련장 26</td><td>농장 13</td></tr>
+                        <tr><td>성당 28</td><td>연구소 27</td><td>병영 27</td><td>벌목장 13</td></tr>
+                        <tr><td>성당 29</td><td>연구소 28</td><td>길드 연락소 28</td><td>약초원 13</td></tr>
+                        <tr><td>성당 30</td><td>연구소 29</td><td>훈련장 29</td><td>항독소 작업장 15</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-tooltip"></div>
+
+    <script>
+        const MAP_CENTER_X = 500;
+        const MAP_CENTER_Y = 500;
+		
+		const rawData = [
+			{"오동통한라면": 28980},
+			{"징크스다": 28405},
+			{"미니s": 14631},
+			{"지와니": 15858},
+			{"moon1004": 9640},
+			{"설록스": 16444},
+			{"벨라다": 11060},
+			{"앤빌마": 6615},
+			{"이상희": 7526},
+			{"zxz0": 13098},
+			{"밀투유": 12709},
+			{"알자너": 12626},
+			{"보호트": 9332},
+			{"찐보스": 12242},
+			{"여우여울": 8985},
+			{"크리치오": 11114},
+			{"생각하는중": 15409},
+			{"Kcal": 11612},
+			{"겐사키": 6003},
+			{"아이스핫초코": 15147},
+			{"뭉쭈콩": 12416},
+			{"도도서": 11406},
+			{"JackMior": 9886},
+			{"슬로우하게나아가자": 10303},
+			{"범후~": 6013},
+			{"토실냥이": 14630},
+			{"짱이될래요": 6312},
+			{"행복아": 12097},
+			{"orea": 10665},
+			{"골드·로저": 12011},
+			{"말이많은편은아니에요": 10979},
+			{"해피~~": 7127},
+			{"구렁텅이": 15607},
+			{"쭈니쭈니암": 10636},
+			{"리아누나": 13555},
+			{"그랜드캐넌": 5723},
+			{"KMSOUTH": 8791},
+			{"라다찡": 10112},
+			{"bluebam": 8642},
+			{"춘달이": 4379},
+			{"DawnDew": 4431},
+			{"초당임률": 10356},
+			{"스패로R": 10686},
+			{"까마귀666": 25923},
+			{"써니s": 19147},
+			{"푸린은음치": 14347},
+			{"나약해때리지마": 30042},
+			{"말리다": 14796},
+			{"Patrick09": 10234},
+			{"일등만기억하는더러운세상": 19456},
+			{"신똘복": 22258},
+			{"삐돌철이": 17557},
+			{"주성이": 10900},
+			{"오께이렛쓰고": 17357},
+			{"사신류크": 10925},
+			{"수아수아": 11840},
+			{"지후파파": 14360},
+			{"언능달리라": 11594},
+			{"공공문은": 10677},
+			{"통통한호박벌": 13209},
+			{"해프니": 18780},
+			{"Dark두치": 12099},
+			{"퀸나나": 11936},
+			{"은서아": 23751},
+			{"새콤달콤윤스": 20235},
+			{"윤담스": 16759},
+			{"앞으로구르기": 16336},
+			{"키키☆": 15046},
+			{"신조협사": 11518},
+			{"호미꽃": 11358},
+			{"고구마왕": 5750},
+			{"츄륩츄륩": 11382},
+			{"GOGOGO": 8970},
+			{"잇힝파워": 10608},
+			{"앗튀다": 10504},
+			{"이놈봐라": 19776},
+			{"닥터슈렉": 7377},
+			{"금주1일차": 19869},
+			{"Stormchaser80": 19361},
+			{"창천192": 13177},
+			{"으이익": 11734},
+			{"오돌이": 9471},
+			{"금양케미칼": 8492},
+			{"사네살어": 8808},
+			{"천상또리": 22884},
+			{"은월823": 16918},
+			{"김낀봉": 14615},
+			{"잠만보언이": 12740},
+			{"옥이쥬": 16167},
+			{"인천택시드라이버": 12926},
+			{"새우깡동갑": 24658},
+			{"하롱꾸": 11866},
+			{"덤디덤": 6439},
+			{"헨젤과그랬대": 9910},
+			{"꼬꼬게": 6936},
+			{"페이시아": 9512},
+			{"이런된장": 10875},
+			{"다정한언니": 15814}
+		];
+        
+        const players = rawData.map(data => {
+            const playerName = Object.keys(data)[0];
+            const playerPower = data[playerName] * 1000;
+            return { name: playerName, power: playerPower };
+        });
+        players.sort((a, b) => b.power - a.power);
+
+        const board = document.getElementById('game-board');
+        const mapContainer = document.getElementById('map-container');
+        const tooltip = document.getElementById('custom-tooltip');
+        
+        const GRID_SIZE = 55; 
+        const CENTER_GRID = Math.floor(GRID_SIZE / 2) + 1; 
+
+        for (let y = 1; y <= GRID_SIZE; y++) {
+            for (let x = 1; x <= GRID_SIZE; x++) {
+                const node = document.createElement('div');
+                node.className = 'node';
+                node.style.gridColumn = x;
+                node.style.gridRow = y;
+
+                const calcX = MAP_CENTER_X + (x - CENTER_GRID);
+                const calcY = MAP_CENTER_Y + (y - CENTER_GRID);
+                
+                node.dataset.type = 'node';
+                node.dataset.x = calcX;
+                node.dataset.y = calcY;
+                
+                board.appendChild(node);
+            }
+        }
+
+        const BASE_SIZE = 3;  
+        const GAP = 2;        
+        const STRIDE = BASE_SIZE + GAP; 
+
+        function getSpiralCoords(count) {
+            let coords = [];
+            let x = 0, y = 0;
+            let dx = 0, dy = -1; 
+            for (let i = 0; i < count; i++) {
+                coords.push({ x, y });
+                if (x === y || (x < 0 && x === -y) || (x > 0 && x === 1 - y)) {
+                    let temp = dx;
+                    dx = -dy;
+                    dy = temp;
+                }
+                x += dx;
+                y += dy;
+            }
+            return coords;
+        }
+
+        const spiralPositions = getSpiralCoords(players.length);
+
+        players.forEach((player, index) => {
+            const pos = spiralPositions[index];
+
+            const startX = (CENTER_GRID - 1) + (pos.x * STRIDE);
+            const startY = (CENTER_GRID - 1) + (pos.y * STRIDE);
+
+            const baseCenterX = MAP_CENTER_X + (pos.x * STRIDE);
+            const baseCenterY = MAP_CENTER_Y + (pos.y * STRIDE);
+
+            const baseEl = document.createElement('div');
+            baseEl.className = 'base';
+            
+            baseEl.style.gridColumn = `${startX} / span ${BASE_SIZE}`;
+            baseEl.style.gridRow = `${startY} / span ${BASE_SIZE}`;
+            baseEl.dataset.type = 'base';
+            baseEl.dataset.rank = index + 1;
+            baseEl.dataset.name = player.name;
+            baseEl.dataset.power = player.power;
+            baseEl.dataset.cx = baseCenterX;
+            baseEl.dataset.cy = baseCenterY;
+
+            baseEl.innerHTML = `
+                <div class="rank-badge">${index + 1}</div>
+                <div class="base-icon">🏯</div>
+                <div class="base-info">${(player.power / 10000).toFixed(0)}만</div>
+            `;
+
+            board.appendChild(baseEl);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            const target = e.target.closest('.node, .base');
+            
+            if (target) {
+                let text = '';
+                if (target.dataset.type === 'base') {
+                    const powerFormatted = Number(target.dataset.power).toLocaleString();
+                    text = `👑 [랭킹 ${target.dataset.rank}위] ${target.dataset.name}\n⚔️ 전투력: ${powerFormatted}\n📍 기지 이전 중앙 좌표: [ X: ${target.dataset.cx}, Y: ${target.dataset.cy} ]`;
+                } else if (target.dataset.type === 'node') {
+                    text = `🟩 [빈 영토]\n좌표: X: ${target.dataset.x}, Y: ${target.dataset.y}`;
+                }
+                
+                tooltip.innerText = text;
+                tooltip.style.display = 'block';
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY + 15) + 'px';
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+
+        function searchPlayer() {
+            const searchInput = document.getElementById('searchInput').value.trim();
+            if (!searchInput) return alert("검색할 키워드를 입력해주세요.");
+
+            document.querySelectorAll('.base').forEach(b => b.classList.remove('highlight'));
+            const allBases = document.querySelectorAll('.base');
+            const matchedBases = [];
+
+            allBases.forEach(base => {
+                const nameData = base.dataset.name;
+                
+                if (nameData.includes(searchInput)) {
+                    base.classList.add('highlight');
+                    matchedBases.push(base);
+                }
+            });
+
+            if (matchedBases.length > 0) {
+                const firstTarget = matchedBases[0];
+                const targetLeft = firstTarget.offsetLeft - (mapContainer.offsetWidth / 2) + (firstTarget.offsetWidth / 2);
+                const targetTop = firstTarget.offsetTop - (mapContainer.offsetHeight / 2) + (firstTarget.offsetHeight / 2);
+
+                mapContainer.scrollTo({
+                    left: targetLeft,
+                    top: targetTop,
+                    behavior: 'smooth'
+                });
+            } else {
+                alert(`"${searchInput}"을(를) 포함하는 기지를 찾을 수 없습니다.`);
+            }
+        }
+		
+		function switchMainTab(index) {
+            document.querySelectorAll('.main-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.main-tab-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+        }
+
+        function switchSubTab(index) {
+            document.querySelectorAll('.sub-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.sub-tab-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+        }
+
+        function switchSurvivalTab(index) {
+            document.querySelectorAll('.survival-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.survival-tab-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+        }
+
+        function autoSelectDayTab() {
+            const currentDay = new Date().getDay();
+            let targetIndex = 0;
+
+            if (currentDay === 0) {
+                alert("오늘은 쉽니다 🛋️");
+                targetIndex = 0; 
+            } else {
+                targetIndex = currentDay - 1;
+            }
+            switchSubTab(targetIndex);
+        }
+		
+		function autoSelectSurvivalTab() {
+            const now = new Date();
+            const baseTime = new Date();
+            baseTime.setHours(11, 0, 0, 0);
+            
+            const diffMs = now - baseTime;
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            
+            const intervalIndex = Math.floor(diffHours / 4);
+            const survivalIndex = ((intervalIndex % 5) + 5) % 5;
+            
+            switchSurvivalTab(survivalIndex);
+        }
+		
+        window.onload = () => {
+            mapContainer.scrollLeft = (board.offsetWidth - mapContainer.offsetWidth) / 2;
+            mapContainer.scrollTop = (board.offsetHeight - mapContainer.offsetHeight) / 2;
+			autoSelectDayTab();
+            autoSelectSurvivalTab();
+        };
+    </script>
+</body>
+</html>
