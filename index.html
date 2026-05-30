@@ -220,12 +220,17 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
 
+        /* 🛠️ 툴팁 스타일 수정: 세로 스크롤이 정상 트리거되도록 최대 높이 제한 및 너비 최적화 */
         #custom-tooltip {
-            position: fixed; background: rgba(0, 0, 0, 0.85); color: #fff;
-            padding: 10px 15px; border: 2px solid #ff9800; border-radius: 5px;
+            position: fixed; background: rgba(0, 0, 0, 0.95); color: #fff;
+            padding: 12px 18px; border: 2px solid #ff9800; border-radius: 5px;
             font-size: 14px; pointer-events: none; z-index: 9999;
-            display: none; white-space: pre-line; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            line-height: 1.5;
+            display: none; white-space: pre-line; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            line-height: 1.5; 
+            max-height: 280px;     /* 변경: 너무 길어지지 않게 최대 높이를 280px로 제한 */
+            max-width: 320px;      /* 추가: 가로 너비 안정적으로 제한 */
+            overflow-y: auto;      /* 세로 스크롤바 활성화 */
+            box-sizing: border-box;
         }
 
         /* 📱 모바일 및 태블릿 최적화 스타일 */
@@ -297,6 +302,7 @@
                 font-size: 12px;
                 padding: 6px 10px;
                 max-width: 80vw;
+                max-height: 200px;
             }
         }
     </style>
@@ -304,10 +310,10 @@
 <body>
 
     <h2>🏯 길드전 습격전 배치도</h2>
-    <p>바닥 또는 기지에 마우스를 올리면 즉시 좌표 정보가 표시됩니다.</p>
+    <p>바닥 또는 기지를 클릭하면 툴팁이 고정되어 텍스트 복사가 가능해집니다.</p>
 
 	<div class="search-container">
-        <input type="text" id="searchInput" placeholder="영주 이름 검색 (예: 영주 15)" onkeypress="if(event.key === 'Enter') searchPlayer()">
+        <input type="text" id="searchInput" placeholder="영주 이름 또는 인원 검색" onkeypress="if(event.key === 'Enter') searchPlayer()">
         <button onclick="searchPlayer()">검색</button>
     </div>
 <div class="main-container">
@@ -521,7 +527,7 @@
     <div id="custom-tooltip"></div>
 
     <script>
-	    // 중앙좌표 입력부분 (98번째 성당이 X: 553, Y: 509에 오도록 설정 보정값 업데이트)
+	    // 중앙좌표 보정값
         const MAP_CENTER_X = 553;
         const MAP_CENTER_Y = 429;
 		
@@ -552,6 +558,20 @@
 			{"꼬꼬게": 6936}, {"페이시아": 9512}, {"이런된장": 10875}, {"다정한언니": 15814},
 			{"TBD1": 0}, {"TBD2": 0}, {"TBD3": 0}, {"TBD4": 0}, {"TBD5": 0}, {"TBD6": 0}, {"TBD7": 0}, {"TBD8": 0}
 		];
+
+        // 이벤트 명단 정의
+        const leftEventMembers = [
+            "요놈봐라", "해프니", "신똘복", "StormChasor80", "은서아", "금주1일차", "앞으로구르기", "징크스", 
+            "생각하는중", "다정한언니", "잠만보연이", "코드제로", "사네살어", "크리치오", "푸린은음치", "dark두치", 
+            "뭉쭈콩", "보호트", "삐돌철이", "사신류크", "수아수아", "언능달리라", "이런된장", "짱이될래요", "키키", 
+            "하롱큐", "GOGOGO", "Patric09", "zxz0"
+        ];
+
+        const rightEventMembers = [
+            "오동통한라면", "일등만기억", "이놈봐라", "아이스핫초코", "지후파파", "새우깡동갑", "오께이레쓰고", "미니s", 
+            "윤담스", "새콤달콤", "겐사키", "곰곰문운", "오동통한라면", "말리다", "밀투유", "써니s", "엔빌마", "오들이", 
+            "으이잌", "잇힝파워", "창천192", "핸젤과그랬대", "moon1004", "jackmior"
+        ];
         
         const players = rawData.map(data => {
             const playerName = Object.keys(data)[0];
@@ -586,7 +606,7 @@
 		}
 
         const BASE_SIZE = 3;  
-        const GAP = 0;        // 💡 2X2 공백을 없애기 위해 GAP을 0으로 수정!
+        const GAP = 0;        
         const STRIDE = BASE_SIZE + GAP; 
 
         function getSpiralCoords(count) {
@@ -655,20 +675,36 @@
             baseEl.dataset.cy = baseCenterY;
 
             if (isEvent) {
-                baseEl.dataset.rank = '이벤트';
-                baseEl.dataset.name = '이벤트 치즈 영역';
-                baseEl.dataset.power = 0;
+                if (currentSlotRank === 19) {
+                    baseEl.dataset.rank = '이벤트(좌)';
+                    baseEl.dataset.name = '왼쪽 이벤트 치즈 영역';
+                    baseEl.dataset.time = '오후 8시';
+                    baseEl.dataset.members = leftEventMembers.join(', ');
+                    
+                    baseEl.innerHTML = `
+                        <div class="rank-badge" style="background-color: #ff9800;">🎁</div>
+                        <div class="base-icon">🧀</div>
+                        <div class="base-info">오후 8시</div>
+                    `;
+                } else {
+                    baseEl.dataset.rank = '이벤트(우)';
+                    baseEl.dataset.name = '오른쪽 이벤트 치즈 영역';
+                    baseEl.dataset.time = '오후 10시';
+                    baseEl.dataset.members = rightEventMembers.join(', ');
 
-                baseEl.innerHTML = `
-                    <div class="rank-badge" style="background-color: #ff9800;">🎁</div>
-                    <div class="base-icon">🧀</div>
-                    <div class="base-info">이벤트</div>
-                `;
+                    baseEl.innerHTML = `
+                        <div class="rank-badge" style="background-color: #ff9800;">🎁</div>
+                        <div class="base-icon">🧀</div>
+                        <div class="base-info">오후 10시</div>
+                    `;
+                }
+                baseEl.dataset.power = 0;
             } else {
                 const player = players[playerIndex];
                 baseEl.dataset.rank = currentRank;
                 baseEl.dataset.name = player.name;
                 baseEl.dataset.power = player.power;
+                baseEl.dataset.members = ''; 
 
                 baseEl.innerHTML = `
                     <div class="rank-badge">${currentRank}</div>
@@ -681,43 +717,121 @@
             board.appendChild(baseEl);
         }
 
-        document.addEventListener('mousemove', (e) => {
-            const target = e.target.closest('.node, .base');
+        // 툴팁 Lock 관리 변수
+        let lockedTarget = null;
+
+        /* 🛠️ 공통 툴팁 빌더 함수 수정: 화면 경계면 자동 감지 및 강제 삐져나감 방지 로직 적용 */
+        function updateTooltip(target, clientX, clientY) {
+            let text = '';
+            const isLocked = (lockedTarget === target);
+
+            if (target.dataset.type === 'base') {
+                if (target.dataset.rank.startsWith('이벤트')) {
+                    const timeInfo = target.dataset.time;
+                    const membersList = target.dataset.members.split(', ').map(m => `- ${m}`).join('\n');
+                    text = `🧀 [${target.dataset.name}]\n⏰ 진행 시간: [ ${timeInfo} ]\n📍 중앙 좌표: [ X: ${target.dataset.cx}, Y: ${target.dataset.cy} ]\n\n👥 참여 인원 명단:\n${membersList}`;
+                } else {
+                    const powerFormatted = Number(target.dataset.power).toLocaleString();
+                    text = `👑 [랭킹 ${target.dataset.rank}위] ${target.dataset.name}\n⚔️ 전투력: ${powerFormatted}\n📍 기지 이전 중앙 좌표: [ X: ${target.dataset.cx}, Y: ${target.dataset.cy} ]`;
+                }
+            } else if (target.dataset.type === 'node') {
+                text = `🟩 [빈 영토]\n좌표: X: ${target.dataset.x}, Y: ${target.dataset.y}`;
+            }
+
+            // 고정 상태 레이아웃 변화
+            if (isLocked) {
+                text = `📌 [툴팁 고정됨 - 다시 클릭시 해제]\n` + text;
+                tooltip.style.borderColor = '#ff5722';
+                tooltip.style.pointerEvents = 'auto'; // 텍스트 복사 및 내부 스크롤 허용
+            } else {
+                tooltip.style.borderColor = '#ff9800';
+                tooltip.style.pointerEvents = 'none'; // 마우스 패스스루
+            }
             
-            if (target) {
-                let text = '';
-                if (target.dataset.type === 'base') {
-                    if (target.dataset.rank === '이벤트') {
-                        text = `🧀 [이벤트 치즈 영역]\n📍 중앙 좌표: [ X: ${target.dataset.cx}, Y: ${target.dataset.cy} ]`;
-                    } else {
-                        const powerFormatted = Number(target.dataset.power).toLocaleString();
-                        text = `👑 [랭킹 ${target.dataset.rank}위] ${target.dataset.name}\n⚔️ 전투력: ${powerFormatted}\n📍 기지 이전 중앙 좌표: [ X: ${target.dataset.cx}, Y: ${target.dataset.cy} ]`;
-                    }
-                } else if (target.dataset.type === 'node') {
-                    text = `🟩 [빈 영토]\n좌표: X: ${target.dataset.x}, Y: ${target.dataset.y}`;
+            tooltip.innerText = text;
+            tooltip.style.display = 'block';
+
+            // 고정된 상태에서 움직이는게 아니라면 마우스 위치로 좌표 고정 및 잘림 보정 실행
+            if (!lockedTarget || isLocked) {
+                let left = clientX + 15;
+                let top = clientY + 15;
+                
+                // 화면 오른쪽/하단 영역 강제 탈출 보정식
+                if (left + tooltip.offsetWidth > window.innerWidth) {
+                    left = clientX - tooltip.offsetWidth - 15;
+                }
+                if (top + tooltip.offsetHeight > window.innerHeight) {
+                    top = window.innerHeight - tooltip.offsetHeight - 15;
                 }
                 
-                tooltip.innerText = text;
-                tooltip.style.display = 'block';
-                tooltip.style.left = (e.clientX + 15) + 'px';
-                tooltip.style.top = (e.clientY + 15) + 'px';
+                if (left < 10) left = 10;
+                if (top < 10) top = 10;
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+            }
+        }
+
+        // 마우스 이동 감지
+        document.addEventListener('mousemove', (e) => {
+            if (lockedTarget) return; // 고정된 상태면 툴팁을 갱신하거나 움직이지 않음
+            
+            const target = e.target.closest('.node, .base');
+            if (target) {
+                updateTooltip(target, e.clientX, e.clientY);
             } else {
                 tooltip.style.display = 'none';
             }
         });
 
+        // 타일 클릭 이벤트 (툴팁 토글 잠금 기능)
+        document.addEventListener('click', (e) => {
+            // 툴팁 내부 텍스트 복사 및 스크롤바 드래그 중 클릭 시 고정 풀림 방지
+            if (e.target.closest('#custom-tooltip')) return;
+
+            const target = e.target.closest('.node, .base');
+            
+            if (target) {
+                if (lockedTarget === target) {
+                    // 동일 대상을 클릭하면 고정 해제
+                    lockedTarget = null;
+                    const currentHover = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node, .base');
+                    if (currentHover) {
+                        updateTooltip(currentHover, e.clientX, e.clientY);
+                    } else {
+                        tooltip.style.display = 'none';
+                    }
+                } else {
+                    // 새로운 기지를 클릭하면 즉시 해당 정보로 고정
+                    lockedTarget = target;
+                    updateTooltip(target, e.clientX, e.clientY);
+                }
+            } else {
+                // 빈 배경이나 대시보드 탭 등을 누르면 고정 일괄 해제
+                if (lockedTarget) {
+                    lockedTarget = null;
+                    tooltip.style.display = 'none';
+                }
+            }
+        });
+
         function searchPlayer() {
-            const searchInput = document.getElementById('searchInput').value.trim();
+            const searchInput = document.getElementById('searchInput').value.trim().toLowerCase();
             if (!searchInput) return alert("검색할 키워드를 입력해주세요.");
+
+            // 검색 실행 시 기존 툴팁 고정 초기화
+            lockedTarget = null;
+            tooltip.style.display = 'none';
 
             document.querySelectorAll('.base').forEach(b => b.classList.remove('highlight'));
             const allBases = document.querySelectorAll('.base');
             const matchedBases = [];
 
             allBases.forEach(base => {
-                const nameData = base.dataset.name;
+                const nameData = base.dataset.name ? base.dataset.name.toLowerCase() : '';
+                const membersData = base.dataset.members ? base.dataset.members.toLowerCase() : '';
                 
-                if (nameData && nameData.includes(searchInput)) {
+                if (nameData.includes(searchInput) || membersData.includes(searchInput)) {
                     base.classList.add('highlight');
                     matchedBases.push(base);
                 }
@@ -734,7 +848,7 @@
                     behavior: 'smooth'
                 });
             } else {
-                alert(`"${searchInput}"을(를) 포함하는 기지를 찾을 수 없습니다.`);
+                alert(`"${document.getElementById('searchInput').value.trim()}"을(를) 포함하는 기지 또는 인원을 찾을 수 없습니다.`);
             }
         }
 		
@@ -752,6 +866,15 @@
                 btn.classList.toggle('active', i === index);
             });
             document.querySelectorAll('.sub-tab-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+        }
+
+        function switchSurvivalTab(index) {
+            document.querySelectorAll('.survival-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.survival-tab-content').forEach((content, i) => {
                 content.classList.toggle('active', i === index);
             });
         }
